@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Tester – Cyberpunk Life Sim</title>
+  <!--
+    Testpagina voor de API. Dit is NIET de echte frontend (die komt in de map client/).
+    Spring Boot serveert alles uit src/main/resources/static automatisch,
+    dus deze pagina staat op http://localhost:8080 zodra de API draait.
+
+    React wordt hier via een CDN geladen en Babel zet de JSX in de browser om.
+    Daardoor is er geen build-tool (zoals Vite) of npm nodig.
+  -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0d0a18; color: #e8e4ff; font-family: system-ui, sans-serif; font-size: 14px; }
+    h1 { color: #ff2e88; margin: 0 0 4px; font-size: 22px; }
+    h2 { font-size: 15px; margin: 0 0 10px; color: #19e6ff; }
+    .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; max-width: 1200px; margin: 0 auto; }
+    @media (max-width: 800px) { .wrap { grid-template-columns: 1fr; } }
+    .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .card { background: #17112b; border: 1px solid #2e2252; border-radius: 10px; padding: 14px; }
+    .muted { color: #958bbd; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .item { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid #2e2252; }
+    .item:last-child { border-bottom: none; }
+    input { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #2e2252; background: #0d0a18; color: inherit; }
+    button { cursor: pointer; border: 1px solid #19e6ff; background: transparent; color: #19e6ff; border-radius: 6px; padding: 6px 10px; font-weight: 600; white-space: nowrap; }
+    button:hover { background: rgba(25, 230, 255, .12); }
+    button.pink { border-color: #ff2e88; color: #ff2e88; }
+    button.red { border-color: #ff5555; color: #ff5555; }
+    button.selected { background: #19e6ff; color: #0d0a18; }
+    .method { font-family: monospace; font-weight: 700; margin-right: 6px; }
+    .GET { color: #3dff8f; } .POST { color: #ffd60a; } .DELETE { color: #ff5555; }
+    .ok { color: #3dff8f; } .fail { color: #ff5555; }
+    pre { background: #0d0a18; border: 1px solid #2e2252; border-radius: 6px; padding: 10px; overflow: auto; max-height: 420px; margin: 8px 0 0; font-size: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
+    .stat { background: #0d0a18; border-radius: 6px; padding: 8px; text-align: center; }
+    .stat b { display: block; font-size: 18px; }
+    .history div { font-family: monospace; font-size: 12px; padding: 2px 0; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+  const { useState, useEffect } = React;
+
+  // De pagina staat op dezelfde server als de API, dus een relatief pad is genoeg
+  const API = "/api";
+
+  function App() {
+    const [characters, setCharacters] = useState([]);
+    const [selected, setSelected] = useState(null); // het gekozen character
+    const [jobs, setJobs] = useState([]);
+    const [items, setItems] = useState([]);
+    const [name, setName] = useState("");
+    const [last, setLast] = useState(null);     // laatste request + response
+    const [history, setHistory] = useState([]); // lijst met alle requests
+
+    // Doet een request naar de API en laat het resultaat rechts op de pagina zien
+    async function call(method, path, body) {
+      const options = { method };
+      if (body) {
+        options.headers = { "Content-Type": "application/json" };
+        options.body = JSON.stringify(body);
+      }
+      const response = await fetch(API + path, options);
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : null;
+
+      const entry = { method, url: API + path, status: response.status, ok: response.ok, body, data };
+      setLast(entry);
+      setHistory((h) => [entry, ...h].slice(0, 30));
+      return entry;
+    }
+
+    async function loadCharacters() {
+      const res = await call("GET", "/characters");
+      if (res.ok) setCharacters(res.data);
+    }
+
+    // Na een actie: lijst en gekozen character opnieuw ophalen (zonder de response te overschrijven)
+    async function refresh(id) {
+      const list = await fetch(API + "/characters").then((r) => r.json());
+      setCharacters(list);
+      setSelected(list.find((c) => c.id === id) || null);
+    }
+
+    // Bij het openen van de pagina: alles ophalen
+    useEffect(() => {
+      (async () => {
+        await loadCharacters();
+        const j = await call("GET", "/jobs");
+        if (j.ok) setJobs(j.data);
+        const i = await call("GET", "/items");
+        if (i.ok) setItems(i.data);
+      })();
+    }, []);
+
+    async function create(e) {
+      e.preventDefault();
+      const res = await call("POST", "/characters", { name });
+      if (res.ok) {
+        setName("");
+        await refresh(res.data.id);
+      }
+    }
+
+    async function remove(id) {
+      await call("DELETE", `/characters/${id}`);
+      await refresh(selected && selected.id !== id ? selected.id : null);
+    }
+
+    async function action(method, path) {
+      await call(method, path);
+      if (selected) await refresh(selected.id);
+    }
+
+    const id = selected?.id;
+
+    return (
+      <div className="wrap">
+        {/* LINKS: knoppen om de API te testen */}
+        <div className="col">
+          <div>
+            <h1>Cyberpunk Life Sim – API Tester</h1>
+            <span className="muted">Klik op een knop. Rechts zie je precies wat de API terugstuurt.</span>
+          </div>
+
+          <div className="card">
+            <h2>Characters</h2>
+            <form className="row" onSubmit={create}>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Naam (leeg = test foutmelding)" />
+              <button className="pink" type="submit">POST character</button>
+              <button type="button" onClick={loadCharacters}>GET alle</button>
+            </form>
+            <div style={{ marginTop: 10 }}>
+              {characters.length === 0 && <span className="muted">Nog geen characters.</span>}
+              {characters.map((c) => (
+                <div className="item" key={c.id}>
+                  <span>#{c.id} <b>{c.name}</b> <span className="muted">{c.alive ? `${c.age} jaar` : `† ${c.age}`} · €${c.money}</span></span>
+                  <span className="row">
+                    <button className={id === c.id ? "selected" : ""} onClick={() => setSelected(c)}>Kies</button>
+                    <button className="red" onClick={() => remove(c.id)}>DELETE</button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {selected && (
+            <div className="card">
+              <h2>#{selected.id} {selected.name} {!selected.alive && "(overleden)"}</h2>
+              <div className="stats">
+                <div className="stat"><b>{selected.age}</b>leeftijd</div>
+                <div className="stat"><b>€${selected.money}</b>geld</div>
+                <div className="stat"><b>{selected.streetCred}</b>street cred</div>
+                <div className="stat"><b>{selected.jobsCompleted}</b>jobs</div>
+                <div className="stat"><b>{selected.health}</b>health</div>
+                <div className="stat"><b>{selected.happiness}</b>happiness</div>
+                <div className="stat"><b>{selected.smarts}</b>smarts</div>
+                <div className="stat"><b>{selected.inventory.length}</b>items</div>
+              </div>
+              {selected.causeOfDeath && <p className="fail">{selected.causeOfDeath}</p>}
+              <div className="row">
+                <button onClick={() => action("GET", `/characters/${id}`)}>GET character</button>
+                <button onClick={() => action("GET", `/characters/${id}/events`)}>GET events</button>
+                <button className="pink" onClick={() => action("POST", `/characters/${id}/age-up`)}>POST age-up (+1 jaar)</button>
+              </div>
+            </div>
+          )}
+
+          <div className="card">
+            <h2>Jobs {!selected && <span className="muted">(kies eerst een character)</span>}</h2>
+            {jobs.map((j) => (
+              <div className="item" key={j.id}>
+                <span>#{j.id} <b>{j.name}</b> <span className="muted">+€${j.payout} · +{j.streetCredReward} cred · -{j.healthCost} hp · min {j.requiredStreetCred} cred / {j.requiredSmarts} smarts</span></span>
+                <button disabled={!selected} onClick={() => action("POST", `/characters/${id}/jobs/${j.id}`)}>POST job</button>
+              </div>
+            ))}
+          </div>
+
+          <div className="card">
+            <h2>Items {!selected && <span className="muted">(kies eerst een character)</span>}</h2>
+            {items.map((i) => (
+              <div className="item" key={i.id}>
+                <span>#{i.id} <b>{i.name}</b> <span className="muted">€${i.price} · +{i.healthBoost} hp · +{i.happinessBoost} happy · +{i.smartsBoost} smarts</span></span>
+                <button disabled={!selected} onClick={() => action("POST", `/characters/${id}/buy/${i.id}`)}>POST buy</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RECHTS: de response van de API */}
+        <div className="col">
+          <div className="card">
+            <h2>Laatste response</h2>
+            {!last && <span className="muted">Nog geen request gedaan.</span>}
+            {last && (
+              <>
+                <div>
+                  <span className={`method ${last.method}`}>{last.method}</span>
+                  <code>{last.url}</code>{" "}
+                  <b className={last.ok ? "ok" : "fail"}>{last.status}</b>
+                </div>
+                {last.body && <pre>Body: {JSON.stringify(last.body, null, 2)}</pre>}
+                <pre>{last.data === null ? "(geen inhoud)" : JSON.stringify(last.data, null, 2)}</pre>
+              </>
+            )}
+          </div>
+
+          <div className="card history">
+            <h2>Geschiedenis</h2>
+            {history.map((h, index) => (
+              <div key={index}>
+                <span className={`method ${h.method}`}>{h.method.padEnd(6)}</span>
+                <b className={h.ok ? "ok" : "fail"}>{h.status}</b> {h.url}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
