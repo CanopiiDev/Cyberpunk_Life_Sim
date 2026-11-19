@@ -5,16 +5,16 @@ met €$500, doet jobs, koopt spullen, wordt ieder jaar ouder en maakt willekeur
 tot je doodgaat.
 
 - `Cyberpunk_Life_Sim/` – REST API in Java met Spring Boot en MySQL
-- `client/` – React frontend (Vite)
+- `client/` – React frontend (nog leeg, alleen mappenstructuur)
 
-## Starten
+## API starten
 
-Je hebt nodig: Java 21, Maven, Node.js en MySQL.
+Je hebt nodig: Java 21, Maven en MySQL.
 
 **1. MySQL** moet draaien op `localhost:3306`. Zet je gebruikersnaam en wachtwoord in
 `Cyberpunk_Life_Sim/src/main/resources/application.properties`. De database wordt automatisch aangemaakt.
 
-**2. API starten** (terminal 1):
+**2. API starten:**
 
 ```bash
 cd Cyberpunk_Life_Sim
@@ -23,15 +23,8 @@ mvn spring-boot:run
 
 De API draait op http://localhost:8080.
 
-**3. React starten** (terminal 2):
-
-```bash
-cd client
-npm install
-npm run dev
-```
-
-Open http://localhost:5173 in je browser.
+**React koppelen:** de API staat verzoeken toe vanaf `http://localhost:5173` en `http://localhost:3000`
+(zie `config/CorsConfig.java`). Draait je React app op een andere poort, voeg die daar dan toe.
 
 Tests van de API draaien (geen MySQL nodig): `cd Cyberpunk_Life_Sim && mvn test`
 
