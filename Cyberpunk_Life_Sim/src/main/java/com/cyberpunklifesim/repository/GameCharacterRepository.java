@@ -5,8 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
  * Repository = de laag die met de database praat.
- * Door JpaRepository uit te breiden krijgen we gratis methodes zoals
- * findAll(), findById(), save() en deleteById(). We hoeven zelf geen SQL te schrijven.
+ * Door JpaRepository uit te breiden krijgen we gratis findAll(), findById(), save() en delete().
+ * Extra methodes maakt Spring automatisch op basis van de naam, bijvoorbeeld findByCharacterId(...).
  */
 public interface GameCharacterRepository extends JpaRepository<GameCharacter, Long> {
 }

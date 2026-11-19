@@ -2,14 +2,19 @@ package com.cyberpunklifesim;
 
 import com.cyberpunklifesim.model.GameCharacter;
 import com.cyberpunklifesim.repository.GameCharacterRepository;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.List;
+
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -20,12 +25,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Test de API van begin tot eind.
- * MockMvc doet "nep" HTTP-requests naar de API, zonder dat de server echt hoeft te draaien.
+ * MockMvc doet "nep" HTTP-requests, zonder dat de server echt hoeft te draaien.
+ * De tests gebruiken een H2 database in het geheugen (zie src/test/resources/application.properties).
+ *
+ * Id's van de startdata (zie DataLoader): Delivery Runner = carrière 1, Netrunner = carrière 7,
+ * Neon Jacket = item 1, Optical Enhancement = item 6, Reflex Booster = item 8, Computer Science = opleiding 1.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD) // iedere test een schone database
 class CharacterApiTest {
+
+    private static final String NEW_CHARACTER = """
+            {
+              "firstName": "Kai", "lastName": "Nakamura", "gender": "Male",
+              "birthDate": "2001-04-12", "birthPlace": "Neon City", "nationality": "Dutch"
+            }
+            """;
 
     @Autowired
     private MockMvc mockMvc;
@@ -33,125 +48,232 @@ class CharacterApiTest {
     @Autowired
     private GameCharacterRepository characterRepository;
 
+    // ---------- UC01: personage aanmaken ----------
+
     @Test
-    void nieuwCharacterHeeftStartwaarden() throws Exception {
-        mockMvc.perform(post("/api/characters")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\": \"V\"}"))
+    void nieuwPersonageKrijgtStartwaarden() throws Exception {
+        mockMvc.perform(post("/api/characters").contentType(MediaType.APPLICATION_JSON).content(NEW_CHARACTER))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("V"))
+                .andExpect(jsonPath("$.fullName").value("Kai Nakamura"))
                 .andExpect(jsonPath("$.age").value(18))
-                .andExpect(jsonPath("$.alive").value(true))
+                .andExpect(jsonPath("$.currentYear").value(2077))
+                .andExpect(jsonPath("$.birthDate").value("2059-04-12"))
                 .andExpect(jsonPath("$.money").value(500))
+                .andExpect(jsonPath("$.health").value(100))
+                .andExpect(jsonPath("$.happiness").value(75))
+                .andExpect(jsonPath("$.intelligence").value(50))
                 .andExpect(jsonPath("$.streetCred").value(0))
-                .andExpect(jsonPath("$.health").value(100));
+                .andExpect(jsonPath("$.appearance").value(50))
+                .andExpect(jsonPath("$.criminalRecord").value("Geen"))
+                .andExpect(jsonPath("$.alive").value(true));
     }
 
     @Test
-    void characterZonderNaamGeeftFout() throws Exception {
-        mockMvc.perform(post("/api/characters")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\": \"\"}"))
-                .andExpect(status().isBadRequest());
+    void personageZonderVoornaamGeeftFout() throws Exception {
+        String body = NEW_CHARACTER.replace("\"Kai\"", "\"\"");
+        mockMvc.perform(post("/api/characters").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Voornaam is verplicht"));
     }
 
     @Test
-    void jobsEnItemsZijnBeschikbaar() throws Exception {
-        mockMvc.perform(get("/api/jobs"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4));
-
-        mockMvc.perform(get("/api/items"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(6));
-    }
-
-    @Test
-    void ouderWordenVerhoogtLeeftijdEnSchrijftInLevensverhaal() throws Exception {
-        maakCharacter();
-
-        mockMvc.perform(post("/api/characters/1/age-up"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.age").value(19));
-
-        // 1 regel van het aankomen in de stad + 1 regel van het nieuwe jaar
-        mockMvc.perform(get("/api/characters/1/events"))
-                .andExpect(status().isOk())
+    void nieuwPersonageHeeftOudersEnLevensgeschiedenis() throws Exception {
+        long id = createCharacter();
+        mockMvc.perform(get("/api/characters/" + id + "/relationships"))
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].age").value(19));
+                .andExpect(jsonPath("$[*].label", hasItem("Moeder")));
+        mockMvc.perform(get("/api/characters/" + id + "/life-history"))
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     @Test
-    void jobUitvoerenGeeftGeldEnStreetCredMaarKostHealth() throws Exception {
-        maakCharacter();
+    void onbekendPersonageGeeft404() throws Exception {
+        mockMvc.perform(get("/api/characters/99999")).andExpect(status().isNotFound());
+    }
 
-        // Job 1 = Noodle Delivery: +50 geld, +1 Street Cred, -2 health
-        mockMvc.perform(post("/api/characters/1/jobs/1"))
+    // ---------- UC02 + UC03: Next Year en gebeurtenissen ----------
+
+    @Test
+    void nextYearGeeftGebeurtenissenDieMaarEenKeerAfgehandeldKunnenWorden() throws Exception {
+        long id = createCharacter();
+
+        MvcResult result = mockMvc.perform(post("/api/characters/" + id + "/age"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.money").value(550))
-                .andExpect(jsonPath("$.streetCred").value(1))
-                .andExpect(jsonPath("$.health").value(98))
-                .andExpect(jsonPath("$.jobsCompleted").value(1));
+                .andExpect(jsonPath("$.character.age").value(19))
+                .andExpect(jsonPath("$.character.currentYear").value(2078))
+                .andExpect(jsonPath("$.yearSummary.length()").value(greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.events.length()").value(greaterThanOrEqualTo(1)))
+                .andReturn();
+
+        // Met openstaande gebeurtenissen kun je niet nog een jaar verder
+        mockMvc.perform(post("/api/characters/" + id + "/age")).andExpect(status().isBadRequest());
+
+        // Alle gebeurtenissen afhandelen met de eerste keuze
+        String json = result.getResponse().getContentAsString();
+        List<Integer> eventIds = JsonPath.read(json, "$.events[*].id");
+        List<Integer> choiceIds = JsonPath.read(json, "$.events[*].choices[0].id");
+        for (int i = 0; i < eventIds.size(); i++) {
+            String url = "/api/characters/" + id + "/events/" + eventIds.get(i) + "/choices";
+            String choice = "{\"choiceId\": " + choiceIds.get(i) + "}";
+            mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(choice))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.message").isNotEmpty());
+
+            // Dezelfde gebeurtenis nog een keer afhandelen mag niet
+            mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(choice))
+                    .andExpect(status().isBadRequest());
+        }
+
+        mockMvc.perform(get("/api/characters/" + id + "/events")).andExpect(jsonPath("$.length()").value(0));
+
+        // Huur is betaald en opgeslagen als transactie
+        mockMvc.perform(get("/api/characters/" + id + "/transactions"))
+                .andExpect(jsonPath("$[*].description", hasItem("Huur en levensonderhoud")));
     }
 
     @Test
-    void jobZonderGenoegStreetCredGeeftFout() throws Exception {
-        maakCharacter();
+    void keuzeVanEenAndereGebeurtenisGeeftFout() throws Exception {
+        long id = createCharacter();
+        String json = mockMvc.perform(post("/api/characters/" + id + "/age")).andReturn().getResponse().getContentAsString();
+        int eventId = JsonPath.read(json, "$.events[0].id");
 
-        // Job 4 = Corpo Heist: vereist 50 Street Cred
-        mockMvc.perform(post("/api/characters/1/jobs/4"))
+        mockMvc.perform(post("/api/characters/" + id + "/events/" + eventId + "/choices")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"choiceId\": 99999}"))
                 .andExpect(status().isBadRequest());
     }
 
-    @Test
-    void itemKopenHaaltGeldErafEnGeeftBonus() throws Exception {
-        maakCharacter();
+    // ---------- UC04: carrière ----------
 
-        // Item 2 = Neon Jacket: 250 geld, +10 happiness (70 -> 80)
-        mockMvc.perform(post("/api/characters/1/buy/2"))
+    @Test
+    void solliciterenZonderDiplomaGeeftFout() throws Exception {
+        long id = createCharacter();
+        mockMvc.perform(post("/api/characters/" + id + "/career/apply/7")) // Netrunner
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Je voldoet niet aan de eisen. Je hebt minimaal 65 Intelligence nodig."));
+    }
+
+    @Test
+    void solliciterenKostEenActie() throws Exception {
+        long id = createCharacter();
+        mockMvc.perform(post("/api/characters/" + id + "/career/apply/1")) // Delivery Runner, geen eisen
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.money").value(250))
-                .andExpect(jsonPath("$.happiness").value(80))
-                .andExpect(jsonPath("$.inventory[0].name").value("Neon Jacket"));
+                .andExpect(jsonPath("$.character.actionsLeft").value(2));
+
+        mockMvc.perform(get("/api/characters/" + id + "/career")).andExpect(status().isOk());
+    }
+
+    @Test
+    void naDrieActiesMoetJeWachtenTotVolgendJaar() throws Exception {
+        long id = createCharacter();
+        String json = mockMvc.perform(get("/api/characters/" + id + "/relationships")).andReturn().getResponse().getContentAsString();
+        int motherId = JsonPath.read(json, "$[0].id");
+        String url = "/api/characters/" + id + "/relationships/" + motherId + "/spend-time";
+
+        mockMvc.perform(post(url)).andExpect(status().isOk());
+        mockMvc.perform(post(url)).andExpect(status().isOk());
+        mockMvc.perform(post(url)).andExpect(status().isOk());
+        mockMvc.perform(post(url)).andExpect(status().isBadRequest());
+    }
+
+    // ---------- UC05: winkel ----------
+
+    @Test
+    void itemKopenHaaltGeldErafEnKomtInInventory() throws Exception {
+        long id = createCharacter();
+        mockMvc.perform(post("/api/characters/" + id + "/items/1/buy")) // Neon Jacket €$250
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.character.money").value(250))
+                .andExpect(jsonPath("$.character.appearance").value(58));
+
+        mockMvc.perform(get("/api/characters/" + id + "/inventory"))
+                .andExpect(jsonPath("$[0].item.name").value("Neon Jacket"));
+        mockMvc.perform(get("/api/characters/" + id + "/transactions"))
+                .andExpect(jsonPath("$[0].amount").value(-250));
     }
 
     @Test
     void itemTeDuurGeeftFout() throws Exception {
-        maakCharacter();
-
-        // Item 6 = Hover Bike: 5000 geld, we hebben er maar 500
-        mockMvc.perform(post("/api/characters/1/buy/6"))
+        long id = createCharacter();
+        mockMvc.perform(post("/api/characters/" + id + "/items/8/buy")) // Reflex Booster €$5.000
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void doodCharacterKanNietsMeer() throws Exception {
-        maakCharacter();
-
-        // We laten het character direct in de database overlijden
-        GameCharacter character = characterRepository.findById(1L).orElseThrow();
-        character.die("Test");
+    void cyberwareKanMaarEenKeerGeinstalleerdWorden() throws Exception {
+        long id = createCharacter();
+        GameCharacter character = characterRepository.findById(id).orElseThrow();
+        character.setMoney(20_000);
         characterRepository.save(character);
 
-        mockMvc.perform(post("/api/characters/1/age-up")).andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/characters/1/jobs/1")).andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/characters/1/buy/1")).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/characters/" + id + "/items/6/buy")).andExpect(status().isOk());
+        mockMvc.perform(post("/api/characters/" + id + "/items/6/buy")).andExpect(status().isBadRequest());
+    }
+
+    // ---------- Opleiding ----------
+
+    @Test
+    void opleidingStarten() throws Exception {
+        long id = createCharacter();
+        mockMvc.perform(post("/api/characters/" + id + "/education/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.character.education").value("Computer Science"))
+                .andExpect(jsonPath("$.character.educationYearsLeft").value(4));
+
+        mockMvc.perform(post("/api/characters/" + id + "/education/2")).andExpect(status().isBadRequest());
+    }
+
+    // ---------- Gevangenis en overlijden ----------
+
+    @Test
+    void inDeGevangenisKunJeNietWinkelen() throws Exception {
+        long id = createCharacter();
+        GameCharacter character = characterRepository.findById(id).orElseThrow();
+        character.setPrisonYearsLeft(2);
+        characterRepository.save(character);
+
+        mockMvc.perform(post("/api/characters/" + id + "/items/1/buy")).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/characters/" + id + "/career/apply/1")).andExpect(status().isBadRequest());
     }
 
     @Test
-    void characterVerwijderen() throws Exception {
-        maakCharacter();
+    void overledenPersonageKanNietsMeerEnHeeftEindoverzicht() throws Exception {
+        long id = createCharacter();
+        GameCharacter character = characterRepository.findById(id).orElseThrow();
+        character.die("Test");
+        characterRepository.save(character);
 
-        mockMvc.perform(delete("/api/characters/1"))
-                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/characters/" + id + "/age")).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/characters/" + id + "/items/1/buy")).andExpect(status().isBadRequest());
 
-        mockMvc.perform(get("/api/characters/1"))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/characters/" + id + "/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.alive").value(false))
+                .andExpect(jsonPath("$.causeOfDeath").value("Test"))
+                .andExpect(jsonPath("$.deathDate").value("2077-04-12"))
+                .andExpect(jsonPath("$.relationships.length()").value(2));
+    }
+
+    @Test
+    void personageVerwijderen() throws Exception {
+        long id = createCharacter();
+        mockMvc.perform(post("/api/characters/" + id + "/items/1/buy"));
+
+        mockMvc.perform(delete("/api/characters/" + id)).andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/characters/" + id)).andExpect(status().isNotFound());
+    }
+
+    // ---------- Startdata en CORS ----------
+
+    @Test
+    void startdataIsGeladen() throws Exception {
+        mockMvc.perform(get("/api/careers")).andExpect(jsonPath("$.length()").value(10));
+        mockMvc.perform(get("/api/education")).andExpect(jsonPath("$.length()").value(5));
+        mockMvc.perform(get("/api/items")).andExpect(jsonPath("$.length()").value(11));
+        mockMvc.perform(get("/api/crimes")).andExpect(jsonPath("$.length()").value(6));
     }
 
     @Test
     void reactAppMagDeApiAanroepen() throws Exception {
-        // De browser stuurt eerst een "preflight" OPTIONS-verzoek om te vragen of het mag
         mockMvc.perform(options("/api/characters")
                         .header("Origin", "http://localhost:5173")
                         .header("Access-Control-Request-Method", "POST"))
@@ -159,10 +281,12 @@ class CharacterApiTest {
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
     }
 
-    private void maakCharacter() throws Exception {
-        mockMvc.perform(post("/api/characters")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\": \"V\"}"))
-                .andExpect(status().isCreated());
+    // ---------- Hulpmethode ----------
+
+    private long createCharacter() throws Exception {
+        String json = mockMvc.perform(post("/api/characters").contentType(MediaType.APPLICATION_JSON).content(NEW_CHARACTER))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return ((Number) JsonPath.read(json, "$.id")).longValue();
     }
 }

@@ -6,42 +6,45 @@
   <title>API Tester – Cyberpunk Life Sim</title>
   <!--
     Testpagina voor de API. Dit is NIET de echte frontend (die komt in de map client/).
-    Spring Boot serveert alles uit src/main/resources/static automatisch,
-    dus deze pagina staat op http://localhost:8080 zodra de API draait.
-
-    React wordt hier via een CDN geladen en Babel zet de JSX in de browser om.
-    Daardoor is er geen build-tool (zoals Vite) of npm nodig.
+    Spring Boot serveert alles uit src/main/resources/static, dus deze pagina staat op http://localhost:8080.
+    React wordt via een CDN geladen en Babel zet de JSX in de browser om: geen npm of Vite nodig.
   -->
   <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; background: #0d0a18; color: #e8e4ff; font-family: system-ui, sans-serif; font-size: 14px; }
-    h1 { color: #ff2e88; margin: 0 0 4px; font-size: 22px; }
-    h2 { font-size: 15px; margin: 0 0 10px; color: #19e6ff; }
-    .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; max-width: 1200px; margin: 0 auto; }
-    @media (max-width: 800px) { .wrap { grid-template-columns: 1fr; } }
-    .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-    .card { background: #17112b; border: 1px solid #2e2252; border-radius: 10px; padding: 14px; }
+    body { margin: 0; background: #0d0a18; color: #e8e4ff; font-family: system-ui, sans-serif; font-size: 13px; }
+    h1 { color: #ff2e88; margin: 0 0 4px; font-size: 20px; }
+    h2 { font-size: 14px; margin: 0 0 8px; color: #19e6ff; }
+    .wrap { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; padding: 14px; max-width: 1400px; margin: 0 auto; }
+    @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+    .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .card { background: #17112b; border: 1px solid #2e2252; border-radius: 10px; padding: 12px; }
     .muted { color: #958bbd; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .item { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid #2e2252; }
+    .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .item { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid #2e2252; }
     .item:last-child { border-bottom: none; }
-    input { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #2e2252; background: #0d0a18; color: inherit; }
-    button { cursor: pointer; border: 1px solid #19e6ff; background: transparent; color: #19e6ff; border-radius: 6px; padding: 6px 10px; font-weight: 600; white-space: nowrap; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    input, select { width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #2e2252; background: #0d0a18; color: inherit; }
+    button { cursor: pointer; border: 1px solid #19e6ff; background: transparent; color: #19e6ff; border-radius: 6px; padding: 5px 9px; font-weight: 600; white-space: nowrap; }
     button:hover { background: rgba(25, 230, 255, .12); }
+    button:disabled { opacity: .35; cursor: default; }
     button.pink { border-color: #ff2e88; color: #ff2e88; }
+    button.big { background: #ff2e88; color: white; font-size: 15px; padding: 10px 18px; }
     button.red { border-color: #ff5555; color: #ff5555; }
     button.selected { background: #19e6ff; color: #0d0a18; }
+    .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
     .method { font-family: monospace; font-weight: 700; margin-right: 6px; }
     .GET { color: #3dff8f; } .POST { color: #ffd60a; } .DELETE { color: #ff5555; }
     .ok { color: #3dff8f; } .fail { color: #ff5555; }
-    pre { background: #0d0a18; border: 1px solid #2e2252; border-radius: 6px; padding: 10px; overflow: auto; max-height: 420px; margin: 8px 0 0; font-size: 12px; }
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; }
-    .stat { background: #0d0a18; border-radius: 6px; padding: 8px; text-align: center; }
-    .stat b { display: block; font-size: 18px; }
-    .history div { font-family: monospace; font-size: 12px; padding: 2px 0; }
+    pre { background: #0d0a18; border: 1px solid #2e2252; border-radius: 6px; padding: 8px; overflow: auto; max-height: 460px; margin: 6px 0 0; font-size: 11px; }
+    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 8px 0; }
+    .stat { background: #0d0a18; border-radius: 6px; padding: 6px; text-align: center; }
+    .stat b { display: block; font-size: 15px; }
+    .event { border: 1px solid #ff2e88; border-radius: 8px; padding: 8px; margin-top: 8px; }
+    .history div { font-family: monospace; font-size: 11px; padding: 1px 0; }
+    .small { font-size: 11px; }
   </style>
 </head>
 <body>
@@ -49,103 +52,106 @@
 
 <script type="text/babel">
   const { useState, useEffect } = React;
+  const API = "/api"; // de pagina draait op dezelfde server als de API
 
-  // De pagina staat op dezelfde server als de API, dus een relatief pad is genoeg
-  const API = "/api";
+  const emptyForm = { firstName: "Kai", lastName: "Nakamura", gender: "Male", birthDate: "2059-04-12", birthPlace: "Neon City", nationality: "Dutch" };
 
   function App() {
     const [characters, setCharacters] = useState([]);
-    const [selected, setSelected] = useState(null); // het gekozen character
-    const [jobs, setJobs] = useState([]);
-    const [items, setItems] = useState([]);
-    const [name, setName] = useState("");
-    const [last, setLast] = useState(null);     // laatste request + response
-    const [history, setHistory] = useState([]); // lijst met alle requests
+    const [char, setChar] = useState(null);       // het gekozen personage (CharacterResponse)
+    const [events, setEvents] = useState([]);     // openstaande gebeurtenissen
+    const [catalog, setCatalog] = useState({ careers: [], education: [], items: [], crimes: [] });
+    const [relationships, setRelationships] = useState([]);
+    const [form, setForm] = useState(emptyForm);
+    const [tab, setTab] = useState("careers");
+    const [last, setLast] = useState(null);
+    const [history, setHistory] = useState([]);
 
-    // Doet een request naar de API en laat het resultaat rechts op de pagina zien
+    // Doet een request en laat het resultaat rechts zien
     async function call(method, path, body) {
       const options = { method };
-      if (body) {
-        options.headers = { "Content-Type": "application/json" };
-        options.body = JSON.stringify(body);
-      }
+      if (body) { options.headers = { "Content-Type": "application/json" }; options.body = JSON.stringify(body); }
       const response = await fetch(API + path, options);
       const text = await response.text();
       const data = text ? JSON.parse(text) : null;
-
       const entry = { method, url: API + path, status: response.status, ok: response.ok, body, data };
       setLast(entry);
-      setHistory((h) => [entry, ...h].slice(0, 30));
+      setHistory((h) => [entry, ...h].slice(0, 40));
       return entry;
     }
 
-    async function loadCharacters() {
-      const res = await call("GET", "/characters");
-      if (res.ok) setCharacters(res.data);
-    }
+    // Stil ophalen (zonder de "laatste response" te overschrijven)
+    const quiet = (path) => fetch(API + path).then((r) => r.ok ? r.json() : null);
 
-    // Na een actie: lijst en gekozen character opnieuw ophalen (zonder de response te overschrijven)
     async function refresh(id) {
-      const list = await fetch(API + "/characters").then((r) => r.json());
-      setCharacters(list);
-      setSelected(list.find((c) => c.id === id) || null);
+      setCharacters(await quiet("/characters"));
+      if (id == null) { setChar(null); return; }
+      setChar(await quiet(`/characters/${id}`));
+      setEvents(await quiet(`/characters/${id}/events`) || []);
+      setRelationships(await quiet(`/characters/${id}/relationships`) || []);
     }
 
-    // Bij het openen van de pagina: alles ophalen
     useEffect(() => {
       (async () => {
-        await loadCharacters();
-        const j = await call("GET", "/jobs");
-        if (j.ok) setJobs(j.data);
-        const i = await call("GET", "/items");
-        if (i.ok) setItems(i.data);
+        setCatalog({
+          careers: await quiet("/careers"), education: await quiet("/education"),
+          items: await quiet("/items"), crimes: await quiet("/crimes"),
+        });
+        await refresh(null);
       })();
     }, []);
 
     async function create(e) {
       e.preventDefault();
-      const res = await call("POST", "/characters", { name });
-      if (res.ok) {
-        setName("");
-        await refresh(res.data.id);
-      }
+      const res = await call("POST", "/characters", form);
+      if (res.ok) await refresh(res.data.id);
     }
 
     async function remove(id) {
       await call("DELETE", `/characters/${id}`);
-      await refresh(selected && selected.id !== id ? selected.id : null);
+      await refresh(char && char.id !== id ? char.id : null);
     }
 
-    async function action(method, path) {
-      await call(method, path);
-      if (selected) await refresh(selected.id);
+    // Een actie uitvoeren en daarna het scherm verversen
+    async function act(method, path, body) {
+      await call(method, path, body);
+      if (char) await refresh(char.id);
     }
 
-    const id = selected?.id;
+    const id = char?.id;
+    const p = (path) => `/characters/${id}${path}`;
 
     return (
       <div className="wrap">
-        {/* LINKS: knoppen om de API te testen */}
         <div className="col">
           <div>
             <h1>Cyberpunk Life Sim – API Tester</h1>
             <span className="muted">Klik op een knop. Rechts zie je precies wat de API terugstuurt.</span>
           </div>
 
+          {/* ---- Personages ---- */}
           <div className="card">
-            <h2>Characters</h2>
-            <form className="row" onSubmit={create}>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Naam (leeg = test foutmelding)" />
-              <button className="pink" type="submit">POST character</button>
-              <button type="button" onClick={loadCharacters}>GET alle</button>
+            <h2>POST /api/characters – nieuw personage</h2>
+            <form onSubmit={create}>
+              <div className="grid">
+                {Object.keys(emptyForm).map((key) => (
+                  <label key={key} className="small muted">{key}
+                    <input value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
+                  </label>
+                ))}
+              </div>
+              <div className="row" style={{ marginTop: 8 }}>
+                <button className="pink" type="submit">POST character</button>
+                <button type="button" onClick={async () => { await call("GET", "/characters"); refresh(id); }}>GET alle</button>
+                <span className="muted small">Tip: maak een veld leeg om de validatie te testen.</span>
+              </div>
             </form>
-            <div style={{ marginTop: 10 }}>
-              {characters.length === 0 && <span className="muted">Nog geen characters.</span>}
+            <div style={{ marginTop: 8 }}>
               {characters.map((c) => (
                 <div className="item" key={c.id}>
-                  <span>#{c.id} <b>{c.name}</b> <span className="muted">{c.alive ? `${c.age} jaar` : `† ${c.age}`} · €${c.money}</span></span>
+                  <span>#{c.id} <b>{c.fullName}</b> <span className="muted">{c.alive ? `${c.age} jaar` : `† ${c.age}`} · €${c.money}</span></span>
                   <span className="row">
-                    <button className={id === c.id ? "selected" : ""} onClick={() => setSelected(c)}>Kies</button>
+                    <button className={id === c.id ? "selected" : ""} onClick={() => refresh(c.id)}>Kies</button>
                     <button className="red" onClick={() => remove(c.id)}>DELETE</button>
                   </span>
                 </div>
@@ -153,74 +159,104 @@
             </div>
           </div>
 
-          {selected && (
+          {/* ---- Dashboard ---- */}
+          {char && (
             <div className="card">
-              <h2>#{selected.id} {selected.name} {!selected.alive && "(overleden)"}</h2>
+              <h2>#{char.id} {char.fullName} · {char.age} jaar · {char.currentYear} · {char.location}</h2>
               <div className="stats">
-                <div className="stat"><b>{selected.age}</b>leeftijd</div>
-                <div className="stat"><b>€${selected.money}</b>geld</div>
-                <div className="stat"><b>{selected.streetCred}</b>street cred</div>
-                <div className="stat"><b>{selected.jobsCompleted}</b>jobs</div>
-                <div className="stat"><b>{selected.health}</b>health</div>
-                <div className="stat"><b>{selected.happiness}</b>happiness</div>
-                <div className="stat"><b>{selected.smarts}</b>smarts</div>
-                <div className="stat"><b>{selected.inventory.length}</b>items</div>
+                {["health", "happiness", "intelligence", "streetCred", "appearance"].map((s) => (
+                  <div className="stat" key={s}><b>{char[s]}</b>{s}</div>
+                ))}
+                <div className="stat"><b>€${char.money}</b>{char.wealth}</div>
+                <div className="stat"><b>{char.position || "-"}</b>{char.career ? `€$${char.salary}/jaar` : "geen baan"}</div>
+                <div className="stat"><b>{char.education || "-"}</b>opleiding</div>
+                <div className="stat"><b>{char.criminalRecord}</b>strafblad</div>
+                <div className="stat"><b>{char.actionsLeft}</b>acties over</div>
               </div>
-              {selected.causeOfDeath && <p className="fail">{selected.causeOfDeath}</p>}
+              {!char.alive && <p className="fail">† Overleden: {char.causeOfDeath}</p>}
+              {char.inPrison && <p className="fail">In de gevangenis: nog {char.prisonYearsLeft} jaar</p>}
               <div className="row">
-                <button onClick={() => action("GET", `/characters/${id}`)}>GET character</button>
-                <button onClick={() => action("GET", `/characters/${id}/events`)}>GET events</button>
-                <button className="pink" onClick={() => action("POST", `/characters/${id}/age-up`)}>POST age-up (+1 jaar)</button>
+                <button className="big" onClick={() => act("POST", p("/age"))}>NEXT YEAR</button>
+                {["/stats", "/life-history", "/transactions", "/summary", "/career", "/inventory", "/relationships", "/events"].map((path) => (
+                  <button key={path} onClick={() => call("GET", p(path))}>GET {path}</button>
+                ))}
               </div>
+
+              {events.map((ev) => (
+                <div className="event" key={ev.id}>
+                  <b>[{ev.category}] {ev.title}</b> <span className="muted small">(event id {ev.id})</span>
+                  <p style={{ margin: "4px 0" }}>{ev.description}</p>
+                  <div className="row">
+                    {ev.choices.map((ch) => (
+                      <button key={ch.id} className="pink" onClick={() => act("POST", p(`/events/${ev.id}/choices`), { choiceId: ch.id })}>{ch.text}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
-          <div className="card">
-            <h2>Jobs {!selected && <span className="muted">(kies eerst een character)</span>}</h2>
-            {jobs.map((j) => (
-              <div className="item" key={j.id}>
-                <span>#{j.id} <b>{j.name}</b> <span className="muted">+€${j.payout} · +{j.streetCredReward} cred · -{j.healthCost} hp · min {j.requiredStreetCred} cred / {j.requiredSmarts} smarts</span></span>
-                <button disabled={!selected} onClick={() => action("POST", `/characters/${id}/jobs/${j.id}`)}>POST job</button>
+          {/* ---- Acties ---- */}
+          {char && (
+            <div className="card">
+              <div className="tabs">
+                {["careers", "education", "items", "crimes", "relationships"].map((t) => (
+                  <button key={t} className={tab === t ? "selected" : ""} onClick={() => setTab(t)}>{t}</button>
+                ))}
+                {char.career && <button className="red" onClick={() => act("POST", p("/career/quit"))}>POST career/quit</button>}
               </div>
-            ))}
-          </div>
 
-          <div className="card">
-            <h2>Items {!selected && <span className="muted">(kies eerst een character)</span>}</h2>
-            {items.map((i) => (
-              <div className="item" key={i.id}>
-                <span>#{i.id} <b>{i.name}</b> <span className="muted">€${i.price} · +{i.healthBoost} hp · +{i.happinessBoost} happy · +{i.smartsBoost} smarts</span></span>
-                <button disabled={!selected} onClick={() => action("POST", `/characters/${id}/buy/${i.id}`)}>POST buy</button>
-              </div>
-            ))}
-          </div>
+              {tab === "careers" && catalog.careers.map((c) => (
+                <div className="item" key={c.id}>
+                  <span>#{c.id} <b>{c.name}</b> <span className="muted">€${c.startSalary} · int {c.requiredIntelligence} · cred {c.requiredStreetCred}{c.requiredDiploma && ` · ${c.requiredDiploma}`}{c.requiresCleanRecord && " · geen strafblad"}{c.illegal && " · illegaal"}</span></span>
+                  <button onClick={() => act("POST", p(`/career/apply/${c.id}`))}>apply</button>
+                </div>
+              ))}
+              {tab === "education" && catalog.education.map((e) => (
+                <div className="item" key={e.id}>
+                  <span>#{e.id} <b>{e.name}</b> <span className="muted">{e.years} jaar · €${e.yearlyCost}/jaar · min int {e.requiredIntelligence}</span></span>
+                  <button onClick={() => act("POST", p(`/education/${e.id}`))}>start</button>
+                </div>
+              ))}
+              {tab === "items" && catalog.items.map((i) => (
+                <div className="item" key={i.id}>
+                  <span>#{i.id} <b>{i.name}</b> <span className="muted">[{i.category}] €${i.price}{i.sideEffect && ` · ${i.sideEffect}`}</span></span>
+                  <button onClick={() => act("POST", p(`/items/${i.id}/buy`))}>buy</button>
+                </div>
+              ))}
+              {tab === "crimes" && catalog.crimes.map((c) => (
+                <div className="item" key={c.id}>
+                  <span>#{c.id} <b>{c.name}</b> <span className="muted">€${c.minReward}-{c.maxReward} · {c.arrestChance}% pakkans · {c.prisonYears} jaar cel</span></span>
+                  <button className="red" onClick={() => act("POST", p(`/crimes/${c.id}`))}>commit</button>
+                </div>
+              ))}
+              {tab === "relationships" && relationships.map((r) => (
+                <div className="item" key={r.id}>
+                  <span>#{r.id} <b>{r.name}</b> <span className="muted">{r.label} · {r.age} jaar · level {r.relationshipLevel}</span></span>
+                  <button disabled={r.type === "Enemy"} onClick={() => act("POST", p(`/relationships/${r.id}/spend-time`))}>spend-time</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* RECHTS: de response van de API */}
+        {/* ---- Response ---- */}
         <div className="col">
           <div className="card">
             <h2>Laatste response</h2>
             {!last && <span className="muted">Nog geen request gedaan.</span>}
             {last && (
               <>
-                <div>
-                  <span className={`method ${last.method}`}>{last.method}</span>
-                  <code>{last.url}</code>{" "}
-                  <b className={last.ok ? "ok" : "fail"}>{last.status}</b>
-                </div>
+                <div><span className={`method ${last.method}`}>{last.method}</span><code>{last.url}</code> <b className={last.ok ? "ok" : "fail"}>{last.status}</b></div>
                 {last.body && <pre>Body: {JSON.stringify(last.body, null, 2)}</pre>}
                 <pre>{last.data === null ? "(geen inhoud)" : JSON.stringify(last.data, null, 2)}</pre>
               </>
             )}
           </div>
-
           <div className="card history">
             <h2>Geschiedenis</h2>
-            {history.map((h, index) => (
-              <div key={index}>
-                <span className={`method ${h.method}`}>{h.method.padEnd(6)}</span>
-                <b className={h.ok ? "ok" : "fail"}>{h.status}</b> {h.url}
-              </div>
+            {history.map((h, i) => (
+              <div key={i}><span className={`method ${h.method}`}>{h.method.padEnd(6)}</span><b className={h.ok ? "ok" : "fail"}>{h.status}</b> {h.url}</div>
             ))}
           </div>
         </div>

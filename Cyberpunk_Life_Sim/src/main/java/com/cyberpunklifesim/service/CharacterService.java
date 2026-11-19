@@ -1,11 +1,17 @@
 package com.cyberpunklifesim.service;
 
+import com.cyberpunklifesim.dto.CharacterResponse;
+import com.cyberpunklifesim.dto.CreateCharacterRequest;
+import com.cyberpunklifesim.dto.LifeSummaryResponse;
+import com.cyberpunklifesim.model.CharacterEvent;
 import com.cyberpunklifesim.model.GameCharacter;
-import com.cyberpunklifesim.model.Item;
-import com.cyberpunklifesim.model.Job;
-import com.cyberpunklifesim.model.LifeEvent;
-import com.cyberpunklifesim.model.RandomEvent;
+import com.cyberpunklifesim.model.Relationship;
+import com.cyberpunklifesim.repository.CharacterEventRepository;
 import com.cyberpunklifesim.repository.GameCharacterRepository;
+import com.cyberpunklifesim.repository.InventoryItemRepository;
+import com.cyberpunklifesim.repository.RelationshipRepository;
+import com.cyberpunklifesim.repository.TransactionRepository;
+import com.cyberpunklifesim.util.RandomUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,155 +20,174 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 /**
- * Hier staan de spelregels voor characters:
- * aanmaken, ophalen, verwijderen, ouder worden, jobs uitvoeren en items kopen.
+ * Alles rondom het personage zelf: aanmaken, ophalen, verwijderen,
+ * en de basisregels die andere services gebruiken (leeft hij nog? zit hij vast? heeft hij acties over?).
  */
 @Service
 public class CharacterService {
 
     private final GameCharacterRepository characterRepository;
-    private final JobService jobService;
-    private final ItemService itemService;
-    private final LifeEventService lifeEventService;
-    private final RandomEventService randomEventService;
+    private final CharacterEventRepository characterEventRepository;
+    private final InventoryItemRepository inventoryRepository;
+    private final RelationshipRepository relationshipRepository;
+    private final TransactionRepository transactionRepository;
+    private final LifeHistoryService historyService;
 
-    public CharacterService(GameCharacterRepository characterRepository, JobService jobService,
-                            ItemService itemService, LifeEventService lifeEventService,
-                            RandomEventService randomEventService) {
+    public CharacterService(GameCharacterRepository characterRepository,
+                            CharacterEventRepository characterEventRepository,
+                            InventoryItemRepository inventoryRepository,
+                            RelationshipRepository relationshipRepository,
+                            TransactionRepository transactionRepository,
+                            LifeHistoryService historyService) {
         this.characterRepository = characterRepository;
-        this.jobService = jobService;
-        this.itemService = itemService;
-        this.lifeEventService = lifeEventService;
-        this.randomEventService = randomEventService;
+        this.characterEventRepository = characterEventRepository;
+        this.inventoryRepository = inventoryRepository;
+        this.relationshipRepository = relationshipRepository;
+        this.transactionRepository = transactionRepository;
+        this.historyService = historyService;
     }
 
-    public List<GameCharacter> getAllCharacters() {
-        return characterRepository.findAll();
+    // ---------- Ophalen ----------
+
+    public List<CharacterResponse> getAllCharacters() {
+        return characterRepository.findAll().stream().map(this::toResponse).toList();
     }
 
     public GameCharacter getCharacter(Long id) {
         return characterRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Character met id " + id + " bestaat niet"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Personage met id " + id + " bestaat niet"));
     }
 
-    public List<LifeEvent> getEvents(Long id) {
-        getCharacter(id); // geeft 404 als het character niet bestaat
-        return lifeEventService.getEvents(id);
-    }
-
-    public GameCharacter createCharacter(String name) {
-        // Een character moet een naam hebben
-        if (name == null || name.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Naam mag niet leeg zijn");
+    /** Haalt een personage op en controleert dat hij nog leeft. */
+    public GameCharacter getAliveCharacter(Long id) {
+        GameCharacter character = getCharacter(id);
+        if (!character.isAlive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    character.getFullName() + " is overleden. Begin een nieuw leven.");
         }
-
-        // Nieuwe characters krijgen automatisch de startwaarden (zie GameCharacter)
-        GameCharacter character = characterRepository.save(new GameCharacter(name.trim()));
-        lifeEventService.log(character, "Je kwam aan in Neon City met €$" + character.getMoney() + " op zak.");
         return character;
     }
 
-    // @Transactional: beide deletes gebeuren samen, of geen van beide
+    /** Haalt een personage op dat leeft én niet in de gevangenis zit (voor winkelen, solliciteren, ...). */
+    public GameCharacter getFreeCharacter(Long id) {
+        GameCharacter character = getAliveCharacter(id);
+        if (character.isInPrison()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Je zit in de gevangenis. Dat kan nu niet. Nog " + character.getPrisonYearsLeft() + " jaar.");
+        }
+        return character;
+    }
+
+    public CharacterResponse toResponse(GameCharacter character) {
+        int openEvents = characterEventRepository.countByCharacterIdAndResolvedFalse(character.getId());
+        return CharacterResponse.from(character, openEvents);
+    }
+
+    public GameCharacter save(GameCharacter character) {
+        return characterRepository.save(character);
+    }
+
+    // ---------- Aanmaken en verwijderen ----------
+
+    public GameCharacter createCharacter(CreateCharacterRequest request) {
+        // Het spel begint in 2077 op je 18e. Je kiest zelf je verjaardag, het geboortejaar is dus altijd 2059.
+        int birthYear = GameCharacter.START_YEAR - GameCharacter.START_AGE;
+
+        GameCharacter character = new GameCharacter(
+                request.firstName().trim(),
+                request.lastName().trim(),
+                request.gender().trim(),
+                request.birthDate().withYear(birthYear),
+                request.birthPlace().trim(),
+                request.nationality().trim());
+        character = characterRepository.save(character);
+
+        // Iedereen begint met een moeder en een vader
+        relationshipRepository.save(new Relationship(character.getId(), RandomUtil.firstName() + " " + character.getLastName(),
+                RandomUtil.between(40, 55), Relationship.FAMILY, "Moeder", RandomUtil.between(60, 90)));
+        relationshipRepository.save(new Relationship(character.getId(), RandomUtil.firstName() + " " + character.getLastName(),
+                RandomUtil.between(42, 58), Relationship.FAMILY, "Vader", RandomUtil.between(50, 90)));
+
+        historyService.logImportant(character, "Je bent " + GameCharacter.START_AGE + " en begint je eigen leven in Neon City. "
+                + "Het is " + GameCharacter.START_YEAR + ". Je hebt €$" + character.getMoney() + " op zak.");
+        return character;
+    }
+
+    // @Transactional: alles wordt samen verwijderd, of (bij een fout) helemaal niets
     @Transactional
     public void deleteCharacter(Long id) {
         GameCharacter character = getCharacter(id);
-        lifeEventService.deleteEvents(id);
+        characterEventRepository.deleteByCharacterId(id);
+        inventoryRepository.deleteByCharacterId(id);
+        relationshipRepository.deleteByCharacterId(id);
+        transactionRepository.deleteByCharacterId(id);
+        historyService.deleteHistory(id);
         characterRepository.delete(character);
     }
 
-    /** Het character wordt een jaar ouder en er gebeurt iets willekeurigs. */
-    public GameCharacter ageUp(Long id) {
-        GameCharacter character = getCharacter(id);
-        checkAlive(character);
+    // ---------- Regels die andere services gebruiken ----------
 
-        character.setAge(character.getAge() + 1);
-
-        // Na je 40e word je langzaam zwakker
-        if (character.getAge() > 40) {
-            character.changeHealth(-3);
-        }
-
-        // Een willekeurige gebeurtenis
-        RandomEvent event = randomEventService.pickRandomEvent();
-        character.changeMoney(event.money());
-        character.changeHealth(event.health());
-        character.changeHappiness(event.happiness());
-        character.changeSmarts(event.smarts());
-        lifeEventService.log(character, event.text());
-
-        // Kun je doodgaan? Bij 0 health altijd, en na je 60e steeds vaker van ouderdom
-        if (character.getHealth() <= 0) {
-            die(character, "Je lichaam gaf het op.");
-        } else if (character.getAge() >= 60 && randomEventService.chance((character.getAge() - 60) * 4)) {
-            die(character, "Je stierf rustig van ouderdom.");
-        }
-
-        return characterRepository.save(character);
-    }
-
-    public GameCharacter doJob(Long characterId, Long jobId) {
-        GameCharacter character = getCharacter(characterId);
-        checkAlive(character);
-        Job job = jobService.getJob(jobId);
-
-        // Spelregel: zwaardere jobs vereisen Street Cred en smarts
-        if (character.getStreetCred() < job.getRequiredStreetCred()) {
+    /** Iedere actie (solliciteren, misdaad, tijd doorbrengen) kost één van je acties van dit jaar. */
+    public void useAction(GameCharacter character) {
+        if (character.getActionsLeft() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Niet genoeg Street Cred. Nodig: " + job.getRequiredStreetCred()
-                            + ", jij hebt: " + character.getStreetCred());
+                    "Je hebt geen acties meer dit jaar. Klik op Next Year.");
         }
-        if (character.getSmarts() < job.getRequiredSmarts()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Niet slim genoeg. Nodig: " + job.getRequiredSmarts()
-                            + " smarts, jij hebt: " + character.getSmarts());
-        }
-
-        // Beloning: geld en Street Cred erbij, maar het kost wel health
-        character.changeMoney(job.getPayout());
-        character.setStreetCred(character.getStreetCred() + job.getStreetCredReward());
-        character.setJobsCompleted(character.getJobsCompleted() + 1);
-        character.changeHealth(-job.getHealthCost());
-        lifeEventService.log(character, "Je deed de job '" + job.getName() + "' en verdiende €$" + job.getPayout() + ".");
-
-        if (character.getHealth() <= 0) {
-            die(character, "Je kwam om tijdens de job '" + job.getName() + "'.");
-        }
-
-        return characterRepository.save(character);
+        character.setActionsLeft(character.getActionsLeft() - 1);
     }
 
-    public GameCharacter buyItem(Long characterId, Long itemId) {
-        GameCharacter character = getCharacter(characterId);
-        checkAlive(character);
-        Item item = itemService.getItem(itemId);
+    public void sendToPrison(GameCharacter character, int years, String reason) {
+        character.setConvictions(character.getConvictions() + 1);
+        character.setPrisonYearsLeft(character.getPrisonYearsLeft() + years);
+        character.setLocation(GameCharacter.PRISON_LOCATION);
+        character.changeHappiness(-20);
+        historyService.logImportant(character, reason + " Je krijgt " + years + " jaar gevangenisstraf.");
 
-        // Spelregel: je kunt alleen kopen als je genoeg geld hebt
-        if (character.getMoney() < item.getPrice()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Niet genoeg geld. Prijs: " + item.getPrice() + ", jij hebt: " + character.getMoney());
+        // In de gevangenis raak je je baan en opleiding kwijt
+        if (character.getCareer() != null) {
+            historyService.log(character, "Je bent je baan als " + character.getPosition() + " kwijt.");
+            character.setCareer(null);
+            character.setSalary(0);
         }
-
-        // Geld eraf, item in de inventory en de stats-bonus erbij
-        character.changeMoney(-item.getPrice());
-        character.getInventory().add(item);
-        character.changeHealth(item.getHealthBoost());
-        character.changeHappiness(item.getHappinessBoost());
-        character.changeSmarts(item.getSmartsBoost());
-        lifeEventService.log(character, "Je kocht een " + item.getName() + " voor €$" + item.getPrice() + ".");
-
-        return characterRepository.save(character);
-    }
-
-    // --- Hulpmethodes ---
-
-    private void checkAlive(GameCharacter character) {
-        if (!character.isAlive()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, character.getName() + " is overleden. Start een nieuw leven.");
+        if (character.getEducation() != null) {
+            historyService.log(character, "Je moest stoppen met je opleiding " + character.getEducation().getName() + ".");
+            character.setEducation(null);
+            character.setEducationYearsLeft(0);
         }
     }
 
-    private void die(GameCharacter character, String cause) {
+    public void releaseFromPrison(GameCharacter character, String text) {
+        character.setPrisonYearsLeft(0);
+        character.setLocation(GameCharacter.HOME_LOCATION);
+        historyService.logImportant(character, text);
+    }
+
+    public void die(GameCharacter character, String cause) {
         character.die(cause);
-        lifeEventService.log(character, cause + " R.I.P. " + character.getName() + " (" + character.getAge() + " jaar)");
+        historyService.logImportant(character, "Overleden op " + character.getAge() + "-jarige leeftijd. Oorzaak: " + cause);
+
+        // Openstaande gebeurtenissen kunnen niet meer afgehandeld worden
+        for (CharacterEvent event : characterEventRepository.findByCharacterIdAndResolvedFalse(character.getId())) {
+            event.resolve("Niet afgehandeld: het personage is overleden.");
+            characterEventRepository.save(event);
+        }
+    }
+
+    // ---------- Eindoverzicht ----------
+
+    public LifeSummaryResponse getSummary(Long id) {
+        GameCharacter c = getCharacter(id);
+        return new LifeSummaryResponse(
+                c.getFullName(),
+                c.getBirthDate(),
+                c.isAlive() ? null : c.getBirthDate().plusYears(c.getAge()),
+                c.getAge(),
+                c.isAlive(),
+                c.getCauseOfDeath(),
+                c.getHighestPosition(),
+                c.getTotalEarned(),
+                c.getCriminalRecord(),
+                relationshipRepository.findByCharacterId(id),
+                historyService.getImportantHistory(id));
     }
 }
