@@ -2,6 +2,7 @@ package com.cyberpunklifesim.controller;
 
 import com.cyberpunklifesim.dto.CreateCharacterRequest;
 import com.cyberpunklifesim.model.GameCharacter;
+import com.cyberpunklifesim.model.LifeEvent;
 import com.cyberpunklifesim.service.CharacterService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,6 +46,12 @@ public class CharacterController {
         return characterService.getCharacter(id);
     }
 
+    // GET /api/characters/1/events  -> het levensverhaal van character 1 (nieuwste eerst)
+    @GetMapping("/{id}/events")
+    public List<LifeEvent> getEvents(@PathVariable Long id) {
+        return characterService.getEvents(id);
+    }
+
     // POST /api/characters  met body { "name": "V" }  -> nieuw character
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED) // 201 Created
@@ -57,6 +64,12 @@ public class CharacterController {
     @ResponseStatus(HttpStatus.NO_CONTENT) // 204 No Content
     public void deleteCharacter(@PathVariable Long id) {
         characterService.deleteCharacter(id);
+    }
+
+    // POST /api/characters/1/age-up  -> character 1 wordt een jaar ouder
+    @PostMapping("/{id}/age-up")
+    public GameCharacter ageUp(@PathVariable Long id) {
+        return characterService.ageUp(id);
     }
 
     // POST /api/characters/1/jobs/2  -> character 1 voert job 2 uit

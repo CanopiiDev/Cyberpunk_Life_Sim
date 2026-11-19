@@ -29,19 +29,21 @@ public class DataLoader implements CommandLineRunner {
     @Override
     public void run(String... args) {
         if (jobRepository.count() == 0) {
-            //                     naam                 beschrijving                                        geld  cred  min. cred
-            jobRepository.save(new Job("Noodle Delivery",   "Bezorg noodles door de neonstraten.",              50,   1,    0));
-            jobRepository.save(new Job("Data Courier",      "Breng een versleutelde datachip naar een klant.",  150,  3,    5));
-            jobRepository.save(new Job("Netrunner Hack",    "Hack een corporate server voor een fixer.",        400,  8,    20));
-            jobRepository.save(new Job("Corpo Heist",       "Steel prototype-tech uit een megacorp-toren.",     1000, 20,   50));
+            //                         naam               beschrijving                                        geld  cred  health  min.cred  min.smarts
+            jobRepository.save(new Job("Noodle Delivery", "Bezorg noodles door de neonstraten.",              50,   1,    2,      0,        0));
+            jobRepository.save(new Job("Data Courier",    "Breng een versleutelde datachip naar een klant.",  150,  3,    5,      5,        0));
+            jobRepository.save(new Job("Netrunner Hack",  "Hack een corporate server voor een fixer.",        400,  8,    10,     20,       60));
+            jobRepository.save(new Job("Corpo Heist",     "Steel prototype-tech uit een megacorp-toren.",     1000, 20,   25,     50,       40));
         }
 
         if (itemRepository.count() == 0) {
-            //                       naam               beschrijving                                     prijs
-            itemRepository.save(new Item("Synth Burger",    "Goedkoop en verrassend lekker.",                 15));
-            itemRepository.save(new Item("Neon Jacket",     "Een jas die oplicht in het donker.",             250));
-            itemRepository.save(new Item("Cyber Eye",       "Implantaat waarmee je in het donker ziet.",      1200));
-            itemRepository.save(new Item("Hover Bike",      "Snel door de stad, boven het verkeer uit.",      5000));
+            //                           naam            beschrijving                                    prijs  health  happy  smarts
+            itemRepository.save(new Item("Synth Burger", "Goedkoop en verrassend lekker.",                15,    5,      2,     0));
+            itemRepository.save(new Item("Neon Jacket",  "Een jas die oplicht in het donker.",            250,   0,      10,    0));
+            itemRepository.save(new Item("Med Kit",      "Lapt je weer op na een zware job.",             100,   25,     0,     0));
+            itemRepository.save(new Item("Skill Chip",   "Upload kennis direct in je hersenen.",          400,   0,      0,     15));
+            itemRepository.save(new Item("Cyber Eye",    "Implantaat waarmee je in het donker ziet.",     1200,  0,      10,    5));
+            itemRepository.save(new Item("Hover Bike",   "Snel door de stad, boven het verkeer uit.",     5000,  0,      30,    0));
         }
     }
 }

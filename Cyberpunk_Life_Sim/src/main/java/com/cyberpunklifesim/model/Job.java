@@ -8,6 +8,7 @@ import jakarta.persistence.Table;
 
 /**
  * Een job die een character kan uitvoeren om geld en Street Cred te verdienen.
+ * Gevaarlijke jobs kosten wel health.
  */
 @Entity
 @Table(name = "jobs")
@@ -27,18 +28,27 @@ public class Job {
     /** Hoeveel Street Cred je krijgt als je deze job voltooit. */
     private int streetCredReward;
 
+    /** Hoeveel health deze job kost (gevaarlijke jobs kosten meer). */
+    private int healthCost;
+
     /** Hoeveel Street Cred je minimaal nodig hebt om deze job te mogen doen. */
     private int requiredStreetCred;
+
+    /** Hoeveel smarts je minimaal nodig hebt om deze job te mogen doen. */
+    private int requiredSmarts;
 
     public Job() {
     }
 
-    public Job(String name, String description, int payout, int streetCredReward, int requiredStreetCred) {
+    public Job(String name, String description, int payout, int streetCredReward, int healthCost,
+               int requiredStreetCred, int requiredSmarts) {
         this.name = name;
         this.description = description;
         this.payout = payout;
         this.streetCredReward = streetCredReward;
+        this.healthCost = healthCost;
         this.requiredStreetCred = requiredStreetCred;
+        this.requiredSmarts = requiredSmarts;
     }
 
     public Long getId() {
@@ -61,7 +71,15 @@ public class Job {
         return streetCredReward;
     }
 
+    public int getHealthCost() {
+        return healthCost;
+    }
+
     public int getRequiredStreetCred() {
         return requiredStreetCred;
+    }
+
+    public int getRequiredSmarts() {
+        return requiredSmarts;
     }
 }

@@ -1,0 +1,247 @@
+/* Kleuren op één plek, zodat je ze makkelijk kunt aanpassen */
+:root {
+  --bg: #0b0716;
+  --card: #160f2b;
+  --border: #2e2252;
+  --text: #ece8ff;
+  --muted: #9a90c2;
+  --pink: #ff2e88;
+  --cyan: #19e6ff;
+  --yellow: #ffd60a;
+  --green: #3dff8f;
+  --red: #ff4d4d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Smalle kolom in het midden, zoals een app op je telefoon */
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+h1, h2, p {
+  margin: 0;
+}
+
+h2 {
+  font-size: 1.1rem;
+}
+
+.logo {
+  text-align: center;
+  font-size: 2rem;
+  letter-spacing: 4px;
+  color: var(--pink);
+  text-shadow: 0 0 12px var(--pink);
+  margin: 24px 0;
+}
+
+.logo span {
+  display: block;
+  font-size: 1rem;
+  color: var(--cyan);
+  text-shadow: 0 0 10px var(--cyan);
+  letter-spacing: 8px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.small-text {
+  font-size: 0.8rem;
+  color: var(--cyan);
+  margin-top: 4px;
+}
+
+.error {
+  background: rgba(255, 77, 77, 0.15);
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--cyan);
+  background: transparent;
+  color: var(--cyan);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+button:hover {
+  background: rgba(25, 230, 255, 0.1);
+}
+
+button.primary {
+  background: var(--pink);
+  border-color: var(--pink);
+  color: white;
+}
+
+button.primary:hover {
+  box-shadow: 0 0 14px var(--pink);
+}
+
+button.danger {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+button.small {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+button.link {
+  border: none;
+  padding: 0;
+  text-align: left;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.list-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* --- Spelscherm --- */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.header .back {
+  font-size: 1.4rem;
+}
+
+.money {
+  margin-left: auto;
+  color: var(--green);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.bar {
+  height: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.bar-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.log {
+  max-height: 220px;
+  overflow-y: auto;
+  gap: 6px;
+}
+
+.log p {
+  font-size: 0.9rem;
+}
+
+.log-age {
+  color: var(--pink);
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.age-up {
+  width: 100%;
+  font-size: 1.2rem;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tabs button {
+  flex: 1;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.tabs button.active {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.rip {
+  text-align: center;
+  align-items: center;
+  border-color: var(--red);
+}
