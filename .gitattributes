@@ -1,0 +1,3 @@
+# Scripts voor de Maven Wrapper: juiste regeleinden per besturingssysteem
+mvnw text eol=lf
+*.cmd text eol=crlf

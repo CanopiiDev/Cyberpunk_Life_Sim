@@ -9,17 +9,30 @@ tot je doodgaat.
 
 ## API starten
 
-Je hebt nodig: Java 21, Maven en MySQL.
+Je hebt nodig: **Java 21 (JDK)** en **MySQL** (bijvoorbeeld via XAMPP).
+Maven hoef je niet te installeren: het project heeft een Maven Wrapper (`mvnw`) die Maven zelf downloadt.
 
-**1. MySQL** moet draaien op `localhost:3306`. Zet je gebruikersnaam en wachtwoord in
+**1. MySQL** moet draaien op `localhost:3306`. Met XAMPP: open het Control Panel en klik op Start bij MySQL.
+De standaard XAMPP-instellingen (gebruiker `root`, geen wachtwoord) staan al in
 `Cyberpunk_Life_Sim/src/main/resources/application.properties`. De database wordt automatisch aangemaakt.
 
 **2. API starten:**
 
+Windows (Command Prompt of PowerShell):
+
+```bat
+cd Cyberpunk_Life_Sim
+.\mvnw.cmd spring-boot:run
+```
+
+Mac / Linux:
+
 ```bash
 cd Cyberpunk_Life_Sim
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
+
+De eerste keer duurt het even, omdat Maven en de libraries gedownload worden.
 
 De API draait op http://localhost:8080.
 
@@ -30,7 +43,7 @@ Dit is alleen een testpagina, niet de echte frontend.
 **React koppelen:** de API staat verzoeken toe vanaf `http://localhost:5173` en `http://localhost:3000`
 (zie `config/CorsConfig.java`). Draait je React app op een andere poort, voeg die daar dan toe.
 
-Tests van de API draaien (geen MySQL nodig): `cd Cyberpunk_Life_Sim && mvn test`
+Tests van de API draaien (geen MySQL nodig): `.\mvnw.cmd test` (Windows) of `./mvnw test` (Mac/Linux)
 
 ## Endpoints
 
