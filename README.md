@@ -23,6 +23,10 @@ mvn spring-boot:run
 
 De API draait op http://localhost:8080.
 
+**API testen in de browser:** open http://localhost:8080. Daar staat een simpele testpagina
+(`src/main/resources/static/index.html`) met een knop voor ieder endpoint. Je ziet direct welke JSON de API terugstuurt.
+Dit is alleen een testpagina, niet de echte frontend.
+
 **React koppelen:** de API staat verzoeken toe vanaf `http://localhost:5173` en `http://localhost:3000`
 (zie `config/CorsConfig.java`). Draait je React app op een andere poort, voeg die daar dan toe.
 
